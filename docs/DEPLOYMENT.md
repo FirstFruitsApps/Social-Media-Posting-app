@@ -2,9 +2,19 @@
 
 ## Preconditions
 
-The hostname was requested by the user. It is not activated simply by saving code in GitHub. Choose an existing Node-capable host or a small VPS with persistent disk. Static-only hosting/GitHub Pages cannot run this backend. The user has not yet provided hosting access or a confirmed hosting target.
+Current production status as of September 21, 2026: **https://social.storageaz.com** is live on Hostinger Web Apps. It runs Node.js 24 with `src/server.mjs` as the entry file. Hostinger holds the production environment variables, and GoDaddy DNS has an A record for `social` pointing to the address assigned in Hostinger. Keep the exact address and account identifiers in the provider dashboards rather than this public repository.
 
-Public DNS inspection during this session returned `ns51.domaincontrol.com` and `ns52.domaincontrol.com` for storageaz.com, consistent with GoDaddy DNS. Confirm ownership/control in the domain account before changing records. No DNS records have been changed by this project.
+The current release was deployed by uploading a source archive. This preserved the existing GitHub repository under FirstFruitsApps and avoided creating a second repository under another account. Automatic GitHub deployment is not connected.
+
+## Redeploy the Hostinger Web App
+
+1. Pull or download the latest commit from `FirstFruitsApps/Social-Media-Posting-app`.
+2. Run `node scripts/check.mjs` and `node --test tests/*.test.mjs`.
+3. Download a private full-data backup from Settings before changing the deployed release.
+4. Create a source archive that excludes `.git`, `data`, `backups`, local `.env` files and dependencies.
+5. In Hostinger Web Apps, redeploy by uploading the new archive. Keep Node.js 24, project root `./`, no build command and entry file `src/server.mjs`.
+6. Preserve the existing environment variables and secrets. Never place the owner password or a provider API key in the repository or source archive.
+7. Verify `https://social.storageaz.com`, owner login, the planner and one reversible draft after deployment. Do not create a live social post as a deployment test.
 
 ## Docker option for a dedicated server
 
@@ -34,4 +44,4 @@ Back up the database/media before deploying a new version. Deploy a previous Git
 
 ## What is not yet done
 
-No server has been provisioned, no credentials configured, no DNS changed, and no certificate issued by this development session. Domain activation requires access to the chosen host and DNS account.
+The app is not connected to a publishing provider or real social accounts. Live publishing remains disabled until the provider API key, location profile and authorized destinations are configured and verified. Automatic deployment from the GitHub repository is also not enabled.

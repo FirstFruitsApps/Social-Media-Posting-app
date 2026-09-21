@@ -20,7 +20,11 @@ Run `node scripts/check.mjs` and `node --test tests/*.test.mjs`. Automated integ
 - Requested repository was observed to be public when the user created it. Do not change visibility without the owner's instruction.
 - No AI key is needed or used.
 - No publishing provider account/API key is configured. No live social accounts were connected or posted to.
-- No hosting target/access has been supplied. DNS lookup points to GoDaddy nameservers; social.storageaz.com is not activated by this session.
+- Production is live at **https://social.storageaz.com** on Hostinger Web Apps using Node.js 24 and `src/server.mjs`.
+- GoDaddy DNS has an A record for `social` pointing to the address assigned by Hostinger. Hostinger confirmed the domain connection and HTTPS is working. Keep the current address in the provider dashboards rather than copying it into this public repository.
+- The owner account is configured. Its email and password are stored only in the hosting account and password manager and must never be committed to GitHub or copied into public documentation.
+- The Hostinger deployment was made by uploading the source archive. Automatic GitHub deployment is not connected, so future source changes require a new package and manual redeployment.
+- Hostinger showed daily backups as enabled. Continue downloading private full-data backups from the app and test restoration before relying on it for irreplaceable media.
 - Local source folder is outputs/storage-social in the originating task workspace.
 - Original screenshot remains in the conversation; it was not copied into the repository.
 
@@ -30,4 +34,4 @@ Never pretend pending OAuth, DNS or provider setup has completed. Never upload c
 
 ## Verification notes — September 21, 2026
 
-Syntax checks and all nine automated tests passed. Browser checks passed for photo upload, crop-to-JPEG, draft saving, scheduling and separate video metadata controls. The QA post was archived. No live publication occurred. Docker deployment and real-account publishing still require acceptance testing.
+Syntax checks and all nine automated tests passed. Browser checks passed for photo upload, crop-to-JPEG, draft saving, scheduling and separate video metadata controls. The QA post was archived. Production returned HTTP 200 over HTTPS, and owner login reached the empty planner successfully. No live publication occurred. Real-account publishing still requires acceptance testing after a provider and social accounts are connected.
