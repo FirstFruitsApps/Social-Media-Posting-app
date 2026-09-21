@@ -2,7 +2,7 @@
 
 A working, self-hosted social publishing workspace for Advanced Storage. Product photos and video posts have separate creation flows and share a planner. **AI generation is disabled by request.**
 
-Requested production address: **https://social.storageaz.com**
+Production address: **https://social.storageaz.com** (live on Hostinger Web Apps)
 
 GitHub repository: **https://github.com/FirstFruitsApps/Social-Media-Posting-app**
 
@@ -22,7 +22,7 @@ GitHub repository: **https://github.com/FirstFruitsApps/Social-Media-Posting-app
 
 **This release is not yet connected to real social accounts.** It does not simulate successful publication. Drafting, uploads, scheduling and backups work without a provider. When a scheduled post becomes due without publishing configuration, it moves to Needs attention. Live publication requires a configured Upload-Post account/API key, an existing profile linked to a location, and authorized social accounts. No subscription was purchased.
 
-Hosting/DNS activation at social.storageaz.com is a separate operational step; see `docs/DEPLOYMENT.md` and `docs/HANDOFF.md`. A local preview URL is not production hosting.
+Production hosting and DNS were activated and verified on September 21, 2026. GoDaddy routes the `social` hostname to the Hostinger Web App. HTTPS and owner sign-in were tested at the production address. The current deployment was uploaded directly to Hostinger, so source changes in GitHub must be packaged and redeployed manually; see `docs/DEPLOYMENT.md` and `docs/HANDOFF.md`.
 
 ## Run locally
 
