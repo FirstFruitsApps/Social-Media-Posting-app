@@ -56,7 +56,7 @@ Tests use isolated temporary directories and local mock provider behavior, never
 
 ## User guide
 
-The six-page plain-language guide is available inside the live app under **Settings → Simple user guide**. It can also be opened at `/storage-social-user-guide.pdf` on any deployed app address.
+The eight-page plain-language guide is available inside the live app under **Settings → Simple user guide**. Pages 7-8 explain how to replace the OpenAI API key before it expires, test the replacement and revoke the old key. It can also be opened at `/storage-social-user-guide.pdf` on any deployed app address. Rebuild it with `python scripts/build_user_guide.py` (documentation-only dependency: ReportLab).
 
 ## Back up the actual business data
 
