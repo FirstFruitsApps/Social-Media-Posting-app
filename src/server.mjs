@@ -34,7 +34,7 @@ function originCheck(req) {
 }
 function rateLimit(key,max=8) {const t=Date.now();if(rateLimits.size>10000)for(const [k,v]of rateLimits)if(v.until<t)rateLimits.delete(k);const record=rateLimits.get(key)||{n:0,until:t+15*60*1000};if(record.until<t){record.n=0;record.until=t+15*60*1000;}record.n++;rateLimits.set(key,record);if(record.n>max)throw new AppError('Too many attempts. Please try again in 15 minutes.',429);}
 function mediaView(m) {return {...m,filename:undefined,url:`/api/media/${m.id}`};}
-const MIME={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.svg':'image/svg+xml'};
+const MIME={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.svg':'image/svg+xml','.pdf':'application/pdf'};
 
 const server=http.createServer(async(req,res)=>{
   res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('X-Frame-Options','DENY');res.setHeader('Referrer-Policy','same-origin');
@@ -134,7 +134,7 @@ const server=http.createServer(async(req,res)=>{
       throw new AppError('Endpoint not found.',404);
     }
     if(!['GET','HEAD'].includes(method))throw new AppError('Method not allowed.',405);
-    const publicFiles={'/':'index.html','/index.html':'index.html','/app.js':'app.js','/time.js':'time.js','/styles.css':'styles.css','/favicon.svg':'favicon.svg'};
+    const publicFiles={'/':'index.html','/index.html':'index.html','/app.js':'app.js','/time.js':'time.js','/styles.css':'styles.css','/favicon.svg':'favicon.svg','/storage-social-user-guide.pdf':'storage-social-user-guide.pdf'};
     const name=publicFiles[path];if(!name)throw new AppError('Page not found.',404);const data=await readFile(resolve(root,'public',name));res.writeHead(200,{'Content-Type':MIME[extname(name)],'Cache-Control':'no-cache'});res.end(method==='HEAD'?undefined:data);
   }catch(e) {
     if(!res.headersSent&&!res.destroyed)json(res,e.status||500,{error:e.status?e.message:'Something went wrong. Your saved work is retained. Please try again.'});
