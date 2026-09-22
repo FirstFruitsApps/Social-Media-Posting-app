@@ -48,3 +48,7 @@ Deployment verification uncovered that Hostinger replaces code-relative data on 
 A second redeployment with the persistent DATA_DIR preserved the owner session, enabled AI setting, $10 allowance, one-request usage ledger and test draft. The test draft was then archived; none were scheduled or published. The OpenAI key metadata showed an October 22, 2026 expiration date; renew it through the owner's secure key workflow before expiry. Live API generation was subsequently verified successfully after the owner funded billing.
 
 GitHub changes were saved through the FirstFruitsApps browser session because the connector has no write permission and terminal push did not complete. The source archive is `storage-social-ai-captions-release.zip` in the parent outputs directory. HTTP checks confirmed the private database paths return 404 and unauthenticated bootstrap returns 401. Future asset edits must change the version in public/index.html.
+
+## Updated owner guide
+
+The user requested simple API-key replacement instructions in the existing app PDF. The guide is now eight pages, with the replacement checklist on pages 7-8, dated key-expiry information, create/install/test/revoke order, DATA_DIR preservation, troubleshooting, and clickable provider links. Earlier AI-disabled wording was corrected. `scripts/build_user_guide.py` keeps the ReportLab source reproducible; ReportLab is not an app runtime dependency. Rendered pages were visually checked. No key was created or replaced for this documentation task.
