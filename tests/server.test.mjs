@@ -7,8 +7,29 @@ import { join,resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { DatabaseSync } from 'node:sqlite';
 const fixture=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aWQAAAABJRU5ErkJggg==','base64');
-async function start(dir,port,production=false){const child=spawn(process.execPath,['src/server.mjs'],{cwd:resolve('.'),env:{...process.env,HOST:'127.0.0.1',PORT:String(port),DATA_DIR:dir,NODE_ENV:production?'production':'development',APP_ORIGIN:`${production?'https':'http'}://127.0.0.1:${port}`,UPLOAD_POST_API_KEY:'',BOOTSTRAP_ADMIN_EMAIL:production?'owner@example.com':'',BOOTSTRAP_ADMIN_PASSWORD:production?'test-owner-password-12345':''},stdio:'pipe'});let stderr='';child.stderr.on('data',d=>stderr+=d);for(let n=0;n<60;n++){try{if((await fetch(`http://127.0.0.1:${port}/healthz`)).ok)return child;}catch{}if(child.exitCode!==null)throw new Error(stderr||'Server exited');await delay(50);}child.kill();throw new Error('Server did not start.');}
+async function start(dir,port,production=false,aiKey=''){const child=spawn(process.execPath,['src/server.mjs'],{cwd:resolve('.'),env:{...process.env,HOST:'127.0.0.1',PORT:String(port),DATA_DIR:dir,NODE_ENV:production?'production':'development',APP_ORIGIN:`${production?'https':'http'}://127.0.0.1:${port}`,UPLOAD_POST_API_KEY:'',OPENAI_API_KEY:aiKey,BOOTSTRAP_ADMIN_EMAIL:production?'owner@example.com':'',BOOTSTRAP_ADMIN_PASSWORD:production?'test-owner-password-12345':''},stdio:'pipe'});let stderr='';child.stderr.on('data',d=>stderr+=d);for(let n=0;n<60;n++){try{if((await fetch(`http://127.0.0.1:${port}/healthz`)).ok)return child;}catch{}if(child.exitCode!==null)throw new Error(stderr||'Server exited');await delay(50);}child.kill();throw new Error('Server did not start.');}
 async function stop(child){if(child.exitCode!==null)return;const done=new Promise(r=>child.once('exit',r));child.kill();await done;}
+test('AI controls require owner authorization, CSRF and explicit opt-in without calling OpenAI',async()=>{
+  const dir=await mkdtemp(join(tmpdir(),'social-ai-auth-')),port=3193,base=`http://127.0.0.1:${port}`;
+  const child=await start(dir,port,true,'test-only-not-a-real-key');
+  try {
+    assert.equal((await fetch(base+'/api/ai/caption',{method:'POST',body:'{}'})).status,401);
+    async function login(email,password){const response=await fetch(base+'/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})});assert.equal(response.status,200);const Cookie=response.headers.get('set-cookie').split(';')[0];const session=await(await fetch(base+'/api/session',{headers:{Cookie}})).json();return {Cookie,'Content-Type':'application/json','X-CSRF-Token':session.user.csrf};}
+    const owner=await login('owner@example.com','test-owner-password-12345');
+    const call=(path,method,data,headers=owner)=>fetch(base+'/api'+path,{method,headers,body:data===undefined?undefined:JSON.stringify(data)});
+    let state=await(await call('/bootstrap','GET')).json();assert.equal(state.ai.configured,true);assert.equal(state.ai.enabled,false);assert(!JSON.stringify(state).includes('test-only-not-a-real-key'));
+    assert.equal((await call('/ai/settings','PUT',{enabled:true,monthlyBudget:10},{...owner,'X-CSRF-Token':'wrong'})).status,403);
+    assert.equal((await call('/ai/settings','PUT',{enabled:true,monthlyBudget:100})).status,400);
+    assert.equal((await call('/ai/caption','POST',{})).status,403);
+    assert.equal((await call('/users','POST',{name:'Editor',email:'editor@example.com',password:'test-editor-password-12345',role:'editor'})).status,201);
+    const editor=await login('editor@example.com','test-editor-password-12345');
+    assert.equal((await call('/ai/settings','PUT',{enabled:true,monthlyBudget:10},editor)).status,403);
+    assert.equal((await call('/ai/settings','PUT',{enabled:true,monthlyBudget:10})).status,200);
+    state=await(await call('/bootstrap','GET')).json();assert.equal(state.aiEnabled,true);
+    assert.equal((await call('/ai/settings','PUT',{enabled:false,monthlyBudget:10})).status,200);
+    assert.equal((await call('/ai/caption','POST',{},editor)).status,403);
+  } finally {await stop(child);await rm(dir,{recursive:true,force:true});}
+});
 test('uploads, revision conflicts, scheduling, restart persistence and full backup restore',async()=>{const dir=await mkdtemp(join(tmpdir(),'social-api-'));const port=3191,base=`http://127.0.0.1:${port}`;let child=await start(dir,port);const call=async(path,method='GET',data,extra={})=>{const response=await fetch(base+'/api'+path,{method,headers:{'X-CSRF-Token':'local-preview','Content-Type':'application/json',...extra},body:data===undefined?undefined:JSON.stringify(data)});return {status:response.status,data:await response.json()};};try{
   assert.equal((await call('/bootstrap')).status,200);
   assert.equal((await fetch(base+'/time.js')).status,200);
