@@ -14,7 +14,9 @@ The current release was deployed by uploading a source archive. This preserved t
 4. Create a source archive that excludes `.git`, `data`, `backups`, local `.env` files and dependencies.
 5. In Hostinger Web Apps, redeploy by uploading the new archive. Keep Node.js 24, project root `./`, no build command and entry file `src/server.mjs`.
 6. Preserve the existing environment variables and secrets. Never place the owner password or a provider API key in the repository or source archive.
+   **Keep DATA_DIR set to the private persistent folder outside both `hbuilds` and `public_html`.** Hostinger replaces release directories on redeploy; the default code-relative `data` folder is unsuitable here. The actual absolute path is stored in Hostinger. Never remove or reset this environment variable.
 7. Verify `https://social.storageaz.com`, owner login, the planner and one reversible draft after deployment. Do not create a live social post as a deployment test.
+8. Change the asset version in `public/index.html` whenever browser assets change. Hostinger may serve static files without the Node server's cache headers. Verify the release in a fresh page.
 
 ## Docker option for a dedicated server
 
