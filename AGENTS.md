@@ -4,7 +4,7 @@ Read docs/HANDOFF.md before modifying this application. The user requested a rea
 
 - Repository: FirstFruitsApps/Social-Media-Posting-app. Do not create another repository.
 - Production hostname: social.storageaz.com. Never change storageaz.com's root website or mail records to deploy this app.
-- AI generation is explicitly DISABLED. Do not add an OpenAI dependency, key requirement, AI-generated captions or paid AI calls unless the user later enables them.
+- The user authorized optional OpenAI captions on September 22, 2026. Preserve owner opt-in, server-only keys, review-before-apply, usage limits, and manual workflows when AI is disabled. Do not add AI image/video generation or automatic publication without a new request.
 - Preserve two distinct entry points: Create photo post and Create video post. They share one planner and media library.
 - Never mark a post Published merely because an upload request succeeded. Interpret each platform result, processing, skipped platforms and TikTok inbox fallback separately.
 - Preserve original uploaded media. Cropping creates a new JPEG asset.

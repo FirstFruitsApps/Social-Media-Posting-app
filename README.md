@@ -1,6 +1,6 @@
 # Storage Social
 
-A working, self-hosted social publishing workspace for Advanced Storage. Product photos and video posts have separate creation flows and share a planner. **AI generation is disabled by request.**
+A working, self-hosted social publishing workspace for Advanced Storage. Product photos and video posts have separate creation flows and share a planner. **Optional AI caption suggestions require an OpenAI API key and owner opt-in.**
 
 Production address: **https://social.storageaz.com** (live on Hostinger Web Apps)
 
@@ -11,6 +11,7 @@ GitHub repository: **https://github.com/FirstFruitsApps/Social-Media-Posting-app
 - Separate photo and video upload/composer workflows; drag-and-drop and media library reuse.
 - Product details, manually written captions, per-platform captions, live approximate previews.
 - Non-AI helper inserts the exact product details you supply; never invents product claims.
+- Optional photo-to-caption assistant with review before use, platform variants, and an estimated monthly allowance. See [AI setup and usage](docs/AI.md).
 - Photo reordering and a crop tool that saves a separate JPEG copy while preserving originals.
 - Persistent drafts, revision conflict detection, duplicate/archive, search/status filters.
 - List and monthly calendar, IANA time zones, daylight-saving validation, scheduled dispatch.
