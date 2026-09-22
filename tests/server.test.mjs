@@ -12,6 +12,7 @@ async function stop(child){if(child.exitCode!==null)return;const done=new Promis
 test('uploads, revision conflicts, scheduling, restart persistence and full backup restore',async()=>{const dir=await mkdtemp(join(tmpdir(),'social-api-'));const port=3191,base=`http://127.0.0.1:${port}`;let child=await start(dir,port);const call=async(path,method='GET',data,extra={})=>{const response=await fetch(base+'/api'+path,{method,headers:{'X-CSRF-Token':'local-preview','Content-Type':'application/json',...extra},body:data===undefined?undefined:JSON.stringify(data)});return {status:response.status,data:await response.json()};};try{
   assert.equal((await call('/bootstrap')).status,200);
   assert.equal((await fetch(base+'/time.js')).status,200);
+  const guide=await fetch(base+'/storage-social-user-guide.pdf');assert.equal(guide.status,200);assert.match(guide.headers.get('content-type')||'',/^application\/pdf/);assert((await guide.arrayBuffer()).byteLength>10000);
   assert.equal((await call('/posts','POST',{title:'Blocked'}, {'X-CSRF-Token':'bad'})).status,403);
   assert.equal((await call('/posts','POST',{}, {Origin:'https://attacker.example'})).status,403);
   const upload=await fetch(base+'/api/media',{method:'POST',headers:{'Content-Type':'image/png','X-File-Name':'test.png','X-CSRF-Token':'local-preview'},body:fixture});assert.equal(upload.status,201);const media=await upload.json();
