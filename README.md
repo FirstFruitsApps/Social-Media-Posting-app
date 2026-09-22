@@ -53,6 +53,10 @@ node --test tests/*.test.mjs
 
 Tests use isolated temporary directories and local mock provider behavior, never real social posts. They cover authentication, CSRF/origin protection, uploads, range reads, input validation, revision conflicts, scheduling, persistence across restart, backup/restore, time zones and publication-status interpretation.
 
+## User guide
+
+The six-page plain-language guide is available inside the live app under **Settings → Simple user guide**. It can also be opened at `/storage-social-user-guide.pdf` on any deployed app address.
+
 ## Back up the actual business data
 
 Git preserves source, documentation and version history. It **does not** preserve the live database, photos/videos, passwords or API credentials. Those are intentionally ignored.

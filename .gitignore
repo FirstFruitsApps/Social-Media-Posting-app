@@ -8,3 +8,5 @@ node_modules/
 *.sqlite*
 .DS_Store
 coverage/
+output/
+tmp/
