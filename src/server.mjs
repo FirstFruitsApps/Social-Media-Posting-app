@@ -11,6 +11,7 @@ import { bootstrap, sessionUser, requireRole, createSession, verifyPassword, has
 import { UploadPostProvider } from './provider.mjs';
 import { createScheduler } from './scheduler.mjs';
 import { backupStream } from './backup.mjs';
+import { createAi } from './ai.mjs';
 
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
 const directory=resolve(process.env.DATA_DIR||resolve(root,'data'));
@@ -21,6 +22,7 @@ if(production && !origin.startsWith('https://'))throw new Error('Production requ
 if(!production && !['127.0.0.1','localhost','::1'].includes(host))throw new Error('Development preview must bind to loopback. Use production mode for network hosting.');
 const db=openDatabase(directory);await bootstrap(db,process.env);
 const provider=new UploadPostProvider(process.env.UPLOAD_POST_API_KEY,resolve(directory,'media'));
+const ai=createAi(db,resolve(directory,'media'),process.env.OPENAI_API_KEY);
 const scheduler=createScheduler(db,provider);
 const rateLimits=new Map();
 function json(res,status,data) {res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});res.end(JSON.stringify(data));}
@@ -46,7 +48,7 @@ const server=http.createServer(async(req,res)=>{
     if(path.startsWith('/api/')) {
       originCheck(req);
       const localPreview=localRequest(req);const user=sessionUser(db,req,localPreview);
-      if(path==='/api/session' && method==='GET')return json(res,200,{user,localPreview,setupRequired:!db.prepare('SELECT COUNT(*) n FROM users').get().n,aiEnabled:false});
+      if(path==='/api/session' && method==='GET')return json(res,200,{user,localPreview,setupRequired:!db.prepare('SELECT COUNT(*) n FROM users').get().n,aiEnabled:user?ai.status().enabled:false});
       if(path==='/api/login' && method==='POST') {
         rateLimit(req.socket.remoteAddress);const input=await body(req);const row=db.prepare('SELECT * FROM users WHERE email=?').get(String(input.email||'').toLowerCase().trim());
         const pw=String(input.password||'');if(pw.length>512)throw new AppError('Invalid credentials.',401);
@@ -57,7 +59,18 @@ const server=http.createServer(async(req,res)=>{
       if(!user)throw new AppError('Please sign in.',401);
       if(!['GET','HEAD'].includes(method) && req.headers['x-csrf-token']!==user.csrf)throw new AppError('Please refresh this page and try again.',403);
       if(path==='/api/logout' && method==='POST') {const token=(req.headers.cookie||'').match(/storage_session=([^;]+)/)?.[1];if(token)db.prepare('DELETE FROM sessions WHERE token=?').run(digest(token));res.setHeader('Set-Cookie','storage_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0');return json(res,200,{ok:true});}
-      if(path==='/api/bootstrap' && method==='GET')return json(res,200,{settings:settings(db),platforms,media:db.prepare('SELECT * FROM media ORDER BY created_at DESC').all().map(mediaView),posts:db.prepare('SELECT * FROM posts ORDER BY updated_at DESC').all().map(r=>postView(db,r)),providerConfigured:provider.configured,aiEnabled:false,user});
+      if(path==='/api/bootstrap' && method==='GET')return json(res,200,{settings:settings(db),platforms,media:db.prepare('SELECT * FROM media ORDER BY created_at DESC').all().map(mediaView),posts:db.prepare('SELECT * FROM posts ORDER BY updated_at DESC').all().map(r=>postView(db,r)),providerConfigured:provider.configured,aiEnabled:ai.status().enabled,ai:ai.status(),user});
+      if(path==='/api/ai/settings' && method==='PUT') {
+        requireRole(user,['owner']);const input=await body(req,4096);
+        if(typeof input.enabled!=='boolean'||!Number.isFinite(input.monthlyBudget)||input.monthlyBudget<1||input.monthlyBudget>50)throw new AppError('Choose a monthly AI allowance between $1 and $50.');
+        if(input.enabled&&!ai.status().configured)throw new AppError('Add the OpenAI key in hosting settings first.',409);
+        db.prepare('UPDATE settings SET value=? WHERE key=?').run(JSON.stringify({...settings(db),aiEnabled:input.enabled,aiMonthlyBudget:Math.round(input.monthlyBudget*100)/100}),'workspace');
+        audit(db,user.id,'ai_settings_updated','workspace');return json(res,200,ai.status());
+      }
+      if(path==='/api/ai/caption' && method==='POST') {
+        requireRole(user,['owner','editor','approver']);rateLimit('ai:'+user.id,10);
+        return json(res,200,await ai.generate(await body(req,16384),user));
+      }
       if(path==='/api/settings' && method==='PUT') {
         requireRole(user,['owner']);const input=await body(req);const s=settings(db);
         if(!String(input.company||'').trim())throw new AppError('Enter a company name.');
@@ -142,6 +155,6 @@ const server=http.createServer(async(req,res)=>{
   }
 });
 server.requestTimeout=5*60*1000;server.headersTimeout=30000;
-server.listen(port,host,()=>console.log(`Storage Social listening on ${origin} (${production?'production':'local preview; AI disabled'})`));
+server.listen(port,host,()=>console.log(`Storage Social listening on ${origin} (${production?'production':'local preview'})`));
 const timer=setInterval(()=>scheduler.tick().catch(e=>console.error('Scheduler:',e.name)),10000);timer.unref();
 for(const signal of ['SIGINT','SIGTERM'])process.on(signal,()=>{clearInterval(timer);server.close(()=>{db.close();process.exit(0);});});
