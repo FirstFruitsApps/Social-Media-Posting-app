@@ -2,7 +2,7 @@
 
 ## User decisions
 
-Build the social posting app from the agreed plan. Keep photo and video submission separate. AI generation is disabled. Preserve the work in **FirstFruitsApps/Social-Media-Posting-app**, which the user created. Production hostname must be **social.storageaz.com**.
+Build the social posting app from the agreed plan. Keep photo and video submission separate. The user authorized optional AI captions on September 22, 2026; AI images/videos and automatic publishing remain outside scope. Preserve the work in **FirstFruitsApps/Social-Media-Posting-app**, which the user created. Production hostname must be **social.storageaz.com**.
 
 ## Implemented
 
@@ -18,8 +18,7 @@ Run `node scripts/check.mjs` and `node --test tests/*.test.mjs`. Automated integ
 
 - Application source, deployment configuration and tests are saved in FirstFruitsApps/Social-Media-Posting-app. This handoff and the remaining documentation accompany that source.
 - Requested repository was observed to be public when the user created it. Do not change visibility without the owner's instruction.
-- No AI key is needed or used.
-- No publishing provider account/API key is configured. No live social accounts were connected or posted to.
+- Hostinger contains masked OPENAI_API_KEY and UPLOAD_POST_API_KEY entries as of September 22. Their values were not read or committed. Key validity, billing and live social connections must be verified separately.
 - Production is live at **https://social.storageaz.com** on Hostinger Web Apps using Node.js 24 and `src/server.mjs`.
 - GoDaddy DNS has an A record for `social` pointing to the address assigned by Hostinger. Hostinger confirmed the domain connection and HTTPS is working. Keep the current address in the provider dashboards rather than copying it into this public repository.
 - The owner account is configured. Its email and password are stored only in the hosting account and password manager and must never be committed to GitHub or copied into public documentation.
@@ -35,3 +34,11 @@ Never pretend pending OAuth, DNS or provider setup has completed. Never upload c
 ## Verification notes — September 21, 2026
 
 Syntax checks and all nine automated tests passed. Browser checks passed for photo upload, crop-to-JPEG, draft saving, scheduling and separate video metadata controls. The QA post was archived. Production returned HTTP 200 over HTTPS, and owner login reached the empty planner successfully. No live publication occurred. Real-account publishing still requires acceptance testing after a provider and social accounts are connected.
+
+## AI caption release — September 22, 2026
+
+Optional server-side OpenAI captions are implemented with owner opt-in, a default $10 monthly estimated allowance, 100 attempts per UTC month, persistent usage accounting and review before applying suggestions. Photo input uses the first three selected pictures plus confirmed facts; video input uses written details only. No automatic save or publication occurs. See AI.md for setup, privacy and cost details.
+
+Syntax checks and all 17 automated tests passed without paid API calls. Local browser checks passed for the disclosure, generation with a mock provider, per-platform review, applying suggestions, saving a draft and disabling AI. This verifies app behavior, not live OpenAI model access or billing. Release deployment and any live verification will be recorded separately.
+
+The tested source archive is `storage-social-ai-captions-release.zip` in the parent outputs directory. GitHub changes are being saved through the FirstFruitsApps browser session because the connector has no write permission and terminal push did not complete. Deployment is awaiting owner sign-in to the existing app so its current database/media can be backed up first. No live AI call or social publication has been performed.

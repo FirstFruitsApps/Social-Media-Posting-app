@@ -25,6 +25,7 @@ The included compose file starts one Node app and a Caddy HTTPS reverse proxy. O
    - `BOOTSTRAP_ADMIN_EMAIL` to the owner's chosen email.
    - `BOOTSTRAP_ADMIN_PASSWORD` to a unique password of at least 14 characters, using the host's secret manager where available.
    - `UPLOAD_POST_API_KEY` only when enabling the optional provider.
+   - `OPENAI_API_KEY` only when enabling optional AI captions (see AI.md).
 3. The compose file enforces production mode, an internal bind and `APP_ORIGIN=https://social.storageaz.com`.
 4. Run `docker compose up -d --build` on the authorized host.
 5. Add an **A record** for host **social** under storageaz.com pointing to that server's public IPv4 address. Add AAAA only if the server is correctly configured for IPv6. If the chosen hosting platform instead provides a CNAME, use its exact target for **social**; never invent a target.
@@ -44,4 +45,4 @@ Back up the database/media before deploying a new version. Deploy a previous Git
 
 ## What is not yet done
 
-The app is not connected to a publishing provider or real social accounts. Live publishing remains disabled until the provider API key, location profile and authorized destinations are configured and verified. Automatic deployment from the GitHub repository is also not enabled.
+Hostinger has masked OpenAI and Upload-Post environment entries as of September 22. Do not infer key validity, billing or connected social accounts merely from their presence. Real-account publishing requires a configured location profile, authorized destinations and explicit acceptance testing. Automatic deployment from the GitHub repository is not enabled.
