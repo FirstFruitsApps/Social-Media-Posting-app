@@ -26,7 +26,7 @@ const ai=createAi(db,resolve(directory,'media'),process.env.OPENAI_API_KEY);
 const scheduler=createScheduler(db,provider);
 const rateLimits=new Map();
 function json(res,status,data) {res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});res.end(JSON.stringify(data));}
-async function body(req,limit=1024*1024) {let size=0;const chunks=[];for await(const chunk of req){size+=chunk.length;if(size>limit)throw new AppError('Request is too large.',413);chunks.push(chunk);}try{return JSON.parse(Buffer.concat(chunks).toString()||'{}');}catch{throw new AppError('Invalid JSON.');}}
+async function body(req,limit=1024*1024) {let size=0;const chunks=[];for await(const chunk of req){size+=chunk.length;if(size>limit)throw new AppError('Request is too large.',413);chunks.push(chunk);}let value;try{value=JSON.parse(Buffer.concat(chunks).toString()||'{}');}catch{throw new AppError('Invalid JSON.');}if(!value||typeof value!=='object'||Array.isArray(value))throw new AppError('Send a JSON object.');return value;}
 function getPost(postId) {const p=postView(db,db.prepare('SELECT * FROM posts WHERE id=?').get(postId));if(!p)throw new AppError('Post not found.',404);return p;}
 function localRequest(req) {return !production && ['127.0.0.1','::1','::ffff:127.0.0.1'].includes(req.socket.remoteAddress);}
 function originCheck(req) {
@@ -97,19 +97,19 @@ const server=http.createServer(async(req,res)=>{
           if(!change.changes)throw new AppError('This post changed in another window.',409);audit(db,user.id,'draft_updated',pid);return json(res,200,getPost(pid));
         }
         if(method==='POST' && action==='duplicate') {const p={...current,scheduled_at:null};delete p.deliveries;delete p.id;const copy=id();db.prepare('INSERT INTO posts(id,title,kind,caption,status,scheduled_at,payload,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?)').run(copy,`${current.title} (copy)`,current.kind,current.caption,'draft',null,JSON.stringify({...p,title:`${current.title} (copy)`}),now(),now());return json(res,201,getPost(copy));}
-        if(method==='POST' && action==='submit') {if(current.status!=='draft')throw new AppError('Only drafts can be submitted.',409);db.prepare('UPDATE posts SET status=?,updated_at=? WHERE id=?').run('pending_approval',now(),pid);audit(db,user.id,'approval_requested',pid);return json(res,200,getPost(pid));}
-        if(method==='POST' && action==='approve') {requireRole(user,['owner','approver']);if(current.status!=='pending_approval')throw new AppError('This post is not awaiting approval.',409);db.prepare('UPDATE posts SET status=?,updated_at=? WHERE id=?').run('approved',now(),pid);audit(db,user.id,'approved',pid);return json(res,200,getPost(pid));}
+        if(method==='POST' && action==='submit') {if(current.status!=='draft')throw new AppError('Only drafts can be submitted.',409);db.prepare('UPDATE posts SET status=?,revision=revision+1,updated_at=? WHERE id=?').run('pending_approval',now(),pid);audit(db,user.id,'approval_requested',pid);return json(res,200,getPost(pid));}
+        if(method==='POST' && action==='approve') {requireRole(user,['owner','approver']);if(current.status!=='pending_approval')throw new AppError('This post is not awaiting approval.',409);db.prepare('UPDATE posts SET status=?,revision=revision+1,updated_at=? WHERE id=?').run('approved',now(),pid);audit(db,user.id,'approved',pid);return json(res,200,getPost(pid));}
         if(method==='POST' && ['schedule','publish'].includes(action)) {
           if(settings(db).requireApproval && current.status!=='approved')throw new AppError('Submit this post for approval first.',409);
           if(settings(db).requireApproval)requireRole(user,['owner','approver']);
           if(!['draft','approved'].includes(current.status))throw new AppError('This post is not ready to schedule or publish.',409);
           const errors=validateReady(current,current.mediaIds.map(mid=>db.prepare('SELECT * FROM media WHERE id=?').get(mid)));if(errors.length)throw new AppError(errors.join('\n'));
-          if(action==='schedule') {if(!current.scheduled_at || Date.parse(current.scheduled_at)<Date.now()+60000)throw new AppError('Schedule at least one minute in the future.');db.prepare('UPDATE posts SET status=?,updated_at=? WHERE id=?').run('scheduled',now(),pid);audit(db,user.id,'scheduled',pid);}
+          if(action==='schedule') {if(!current.scheduled_at || Date.parse(current.scheduled_at)<Date.now()+60000)throw new AppError('Schedule at least one minute in the future.');db.prepare('UPDATE posts SET status=?,revision=revision+1,updated_at=? WHERE id=?').run('scheduled',now(),pid);audit(db,user.id,'scheduled',pid);}
           else scheduler.enqueue(pid,user.id);
           return json(res,200,getPost(pid));
         }
-        if(method==='POST' && action==='unschedule') {if(current.deliveries.length || !['scheduled','pending_approval','approved','needs_attention'].includes(current.status))throw new AppError('This post cannot be returned to drafts.',409);db.prepare('UPDATE posts SET status=?,updated_at=? WHERE id=?').run('draft',now(),pid);audit(db,user.id,'returned_to_draft',pid);return json(res,200,getPost(pid));}
-        if(method==='POST' && action==='archive') {if(current.status==='publishing')throw new AppError('Wait until publishing finishes before archiving.',409);db.prepare('UPDATE posts SET status=?,updated_at=? WHERE id=?').run('archived',now(),pid);audit(db,user.id,'archived',pid);return json(res,200,getPost(pid));}
+        if(method==='POST' && action==='unschedule') {if(current.deliveries.length || !['scheduled','pending_approval','approved','needs_attention'].includes(current.status))throw new AppError('This post cannot be returned to drafts.',409);db.prepare('UPDATE posts SET status=?,revision=revision+1,updated_at=? WHERE id=?').run('draft',now(),pid);audit(db,user.id,'returned_to_draft',pid);return json(res,200,getPost(pid));}
+        if(method==='POST' && action==='archive') {if(current.status==='publishing')throw new AppError('Wait until publishing finishes before archiving.',409);db.prepare('UPDATE posts SET status=?,revision=revision+1,updated_at=? WHERE id=?').run('archived',now(),pid);audit(db,user.id,'archived',pid);return json(res,200,getPost(pid));}
       }
       if(path==='/api/media' && method==='POST') {
         requireRole(user,['owner','editor','approver']);
@@ -147,7 +147,7 @@ const server=http.createServer(async(req,res)=>{
       throw new AppError('Endpoint not found.',404);
     }
     if(!['GET','HEAD'].includes(method))throw new AppError('Method not allowed.',405);
-    const publicFiles={'/':'index.html','/index.html':'index.html','/app.js':'app.js','/time.js':'time.js','/styles.css':'styles.css','/favicon.svg':'favicon.svg','/storage-social-user-guide.pdf':'storage-social-user-guide.pdf'};
+    const publicFiles={'/':'index.html','/index.html':'index.html','/app.js':'app.js','/time.js':'time.js','/draft-safety.js':'draft-safety.js','/styles.css':'styles.css','/favicon.svg':'favicon.svg','/storage-social-user-guide.pdf':'storage-social-user-guide.pdf'};
     const name=publicFiles[path];if(!name)throw new AppError('Page not found.',404);const data=await readFile(resolve(root,'public',name));res.writeHead(200,{'Content-Type':MIME[extname(name)],'Cache-Control':'no-cache'});res.end(method==='HEAD'?undefined:data);
   }catch(e) {
     if(!res.headersSent&&!res.destroyed)json(res,e.status||500,{error:e.status?e.message:'Something went wrong. Your saved work is retained. Please try again.'});

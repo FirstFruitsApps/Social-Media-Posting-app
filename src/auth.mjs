@@ -4,7 +4,13 @@ import { id, now } from './db.mjs';
 import { AppError } from './domain.mjs';
 const scrypt=promisify(scryptCallback);
 export async function hashPassword(password) {const salt=randomBytes(16).toString('hex');return `${salt}:${(await scrypt(password,salt,64)).toString('hex')}`;}
-export async function verifyPassword(password,stored) {const [salt,hash]=stored.split(':');const derived=await scrypt(password,salt,64);const expected=Buffer.from(hash,'hex');return derived.length===expected.length&&timingSafeEqual(derived,expected);}
+export async function verifyPassword(password,stored) {
+  if(typeof password!=='string'||typeof stored!=='string')return false;
+  const match=/^([a-f0-9]{32}):([a-f0-9]{128})$/i.exec(stored);
+  if(!match)return false;
+  const derived=await scrypt(password,match[1],64);const expected=Buffer.from(match[2],'hex');
+  return timingSafeEqual(derived,expected);
+}
 export const digest=value=>createHash('sha256').update(value).digest('hex');
 export async function bootstrap(db,env) {
   if(db.prepare('SELECT COUNT(*) AS n FROM users').get().n)return;

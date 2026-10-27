@@ -52,3 +52,15 @@ GitHub changes were saved through the FirstFruitsApps browser session because th
 ## Updated owner guide
 
 The user requested simple API-key replacement instructions in the existing app PDF. The guide is now eight pages, with the replacement checklist on pages 7-8, dated key-expiry information, create/install/test/revoke order, DATA_DIR preservation, troubleshooting, and clickable provider links. Earlier AI-disabled wording was corrected. `scripts/build_user_guide.py` keeps the ReportLab source reproducible; ReportLab is not an app runtime dependency. Rendered pages were visually checked. No key was created or replaced for this documentation task.
+
+## Reliability review — October 26, 2026
+
+The user requested a careful review and corrections, and explicitly selected **no live AI testing**. The live site now returns HTTPS 200, `/healthz` is healthy, and unauthenticated business-data requests return 401. The September 22 hosting error is not currently reproducible. Hostinger lists a later deployment on October 8; GitHub source remained at f35b93d before this review.
+
+Corrected unsaved-draft replacement, delayed save responses overwriting newer edits, and uploads/crops attaching to a different draft after navigation. Review-before-schedule now stops when the draft changes during saving. Post status changes advance revisions, so a stale edit cannot override approval, scheduling, or archiving. Scheduler entry rejects archived/pending/terminal posts and reports missing media clearly. Boolean declarations require real booleans and TikTok consent requires true. Malformed JSON bodies return a validation error.
+
+Backup restoration validates tar entries and SQLite in a private staging directory before copying files to an empty destination. Failed restores remove only files they created and preserve existing files. Malformed stored password hashes fail authentication safely. Server tests use allocated ports and verify their own child process is ready, avoiding collisions with other local servers.
+
+Syntax checks and all **32 automated tests** pass. Tests use isolated data and mock providers; no OpenAI requests or social posts were sent. Local browser checks passed for photo upload, saving a draft, reviewing, and scheduling in America/Phoenix. Browser assets use version `20261026-review2`, including the new `draft-safety.js` module. Production deployment and authenticated verification will be recorded below after completion.
+
+The previous key-expiry date was October 22, 2026. Current AI key validity and live social publishing are unverified; do not infer either from environment-variable presence. Preserve the existing persistent DATA_DIR and take a fresh private business-data backup before redeploying.

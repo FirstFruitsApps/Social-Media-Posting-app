@@ -14,6 +14,7 @@ export function safeUrl(value, required=false) {
 export function normalizePost(input, db) {
   if (!input || typeof input!=='object' || (input.mediaIds!==undefined&&!Array.isArray(input.mediaIds)) || (input.platforms!==undefined&&!Array.isArray(input.platforms))) throw new AppError('Invalid post fields.');
   if (!['photo','video'].includes(input.kind)) throw new AppError('Choose a photo or video post.');
+  if ((input.mediaIds||[]).some(value=>typeof value!=='string' || !value.trim()) || (input.platforms||[]).some(value=>typeof value!=='string' || !value.trim())) throw new AppError('Media and destination IDs must be text values.');
   const text=(v,max) => String(v??'').trim().slice(0,max);
   const title=text(input.title,120); if (!title) throw new AppError('Add a post name.');
   const mediaIds=[...new Set(input.mediaIds||[])];
@@ -28,7 +29,11 @@ export function normalizePost(input, db) {
   for (const p of targets) { const val=input.variants?.[p]; if (val) variants[p]=text(val,65000); }
   const options={};
   const fields=['facebook_page_id','pinterest_board_id','gbp_location_id','youtube_title','privacy_level','youtube_privacy','made_for_kids','brand_organic_toggle','brand_content_toggle','disable_comment','disable_duet','disable_stitch','consent'];
-  for (const key of fields) if (input.options?.[key]!==undefined) options[key]=typeof input.options[key]==='boolean'?input.options[key]:text(input.options[key],300);
+  const booleanOptions=['made_for_kids','brand_organic_toggle','brand_content_toggle','disable_comment','disable_duet','disable_stitch','consent'];
+  for (const key of fields) if (input.options?.[key]!==undefined) {
+    if (booleanOptions.includes(key) && typeof input.options[key]!=='boolean') throw new AppError(`${key} must be true or false.`);
+    options[key]=booleanOptions.includes(key)?input.options[key]:text(input.options[key],300);
+  }
   let scheduledAt=input.scheduled_at||null;
   if (scheduledAt) { if (!Number.isFinite(Date.parse(scheduledAt))) throw new AppError('Choose a valid date and time.'); scheduledAt=new Date(scheduledAt).toISOString(); }
   return { title, kind:input.kind, caption:text(input.caption,65000), mediaIds, platforms:targets, variants, options, product:text(input.product,2000), price:text(input.price,100), offer:text(input.offer,1000), link:safeUrl(text(input.link,2000)), locationId:text(input.locationId,100), scheduled_at:scheduledAt };
@@ -48,7 +53,7 @@ export function validateReady(post, media) {
   if (post.platforms.includes('youtube') && (!post.options.youtube_title || post.options.youtube_title.length>100)) errors.push('YouTube needs a title of 1–100 characters.');
   if (post.platforms.includes('youtube') && !['public','private','unlisted'].includes(post.options.youtube_privacy)) errors.push('Choose YouTube visibility.');
   if (post.platforms.includes('youtube') && typeof post.options.made_for_kids!=='boolean') errors.push('Choose the YouTube audience.');
-  if (post.platforms.includes('tiktok') && (!post.options.privacy_level || !post.options.consent)) errors.push('Choose TikTok visibility and confirm the music/content declaration.');
+  if (post.platforms.includes('tiktok') && (!post.options.privacy_level || post.options.consent!==true)) errors.push('Choose TikTok visibility and confirm the music/content declaration.');
   if (post.platforms.includes('tiktok') && post.options.brand_content_toggle && post.options.privacy_level==='SELF_ONLY') errors.push('TikTok paid partnerships cannot use private visibility.');
   return errors;
 }

@@ -3,12 +3,17 @@ import { aggregate, AppError, validateReady } from './domain.mjs';
 
 export function createScheduler(db,provider) {
   let busy=false;
-  function setStatus(postId) { const deliveries=db.prepare('SELECT * FROM deliveries WHERE post_id=?').all(postId); db.prepare('UPDATE posts SET status=?,updated_at=? WHERE id=?').run(aggregate(deliveries),now(),postId); }
+  function setStatus(postId) {
+    const deliveries=db.prepare('SELECT * FROM deliveries WHERE post_id=?').all(postId);
+    const status=aggregate(deliveries);
+    db.prepare('UPDATE posts SET status=?,revision=revision+1,updated_at=? WHERE id=? AND status<>?').run(status,now(),postId,status);
+  }
   function enqueue(postId,actor) {
     const post=postView(db,db.prepare('SELECT * FROM posts WHERE id=?').get(postId));
     if (!post) throw new AppError('Post not found.',404);
-    if (['published','publishing','partial','needs_attention'].includes(post.status)) throw new AppError('This post has already entered publishing. Review its individual delivery results.',409);
+    if (!['draft','approved','scheduled'].includes(post.status)) throw new AppError('Only drafts, approved posts, or scheduled posts can enter publishing.',409);
     const media=post.mediaIds.map(mid=>db.prepare('SELECT * FROM media WHERE id=?').get(mid));
+    if (media.some(item=>!item)) throw new AppError('One of the selected files is no longer available.');
     const errors=validateReady(post,media); if(errors.length) throw new AppError(errors.join('\n'));
     if(!provider.configured) throw new AppError('Connect a publishing provider before publishing. Your draft remains saved.',503);
     const location=settings(db).locations.find(l=>l.id===post.locationId);
@@ -16,7 +21,7 @@ export function createScheduler(db,provider) {
     db.exec('BEGIN IMMEDIATE');
     try {
       for (const platform of post.platforms) db.prepare('INSERT INTO deliveries(id,post_id,platform,profile,status,request_id,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?)').run(id(),postId,platform,location.profile,'queued',id(),now(),now());
-      db.prepare('UPDATE posts SET status=?,updated_at=? WHERE id=?').run('publishing',now(),postId);
+      db.prepare('UPDATE posts SET status=?,revision=revision+1,updated_at=? WHERE id=?').run('publishing',now(),postId);
       audit(db,actor,'publish_requested',postId); db.exec('COMMIT');
     } catch(e) {db.exec('ROLLBACK');throw e;}
   }
@@ -24,7 +29,7 @@ export function createScheduler(db,provider) {
     if(busy)return;busy=true;
     try {
       for(const row of db.prepare("SELECT * FROM posts WHERE status='scheduled' AND scheduled_at<=?").all(now())) {
-        try{enqueue(row.id,'scheduler');}catch(e){db.prepare('UPDATE posts SET status=?,updated_at=? WHERE id=?').run('needs_attention',now(),row.id);audit(db,'scheduler',`schedule_blocked: ${e.message}`,row.id);}
+        try{enqueue(row.id,'scheduler');}catch(e){db.prepare(`UPDATE posts SET status=?,revision=revision+1,updated_at=? WHERE id=? AND status='scheduled'`).run('needs_attention',now(),row.id);audit(db,'scheduler',`schedule_blocked: ${e.message}`,row.id);}
       }
       for(const delivery of db.prepare("SELECT * FROM deliveries WHERE status IN ('queued','processing') AND (next_check IS NULL OR next_check<=?) ORDER BY created_at LIMIT 12").all(now())) {
         const post=postView(db,db.prepare('SELECT * FROM posts WHERE id=?').get(delivery.post_id));
