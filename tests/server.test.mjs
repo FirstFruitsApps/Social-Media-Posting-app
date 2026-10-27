@@ -49,6 +49,39 @@ test('concurrent state changes cannot be overwritten by stale draft edits',async
     const final=await(await call(`/posts/${draft.id}`)).json();assert.equal(final.status,'archived');assert.equal(final.title,'Original');
   }finally{await stop(child);await rm(dir,{recursive:true,force:true});}
 });
+test('password change verifies identity, rejects invalid requests and revokes only this account sessions',async()=>{
+  const dir=await mkdtemp(join(tmpdir(),'social-password-')),port=await freePort(),base=`http://127.0.0.1:${port}`;
+  let child=await start(dir,port,true);
+  const oldPassword='test-owner-password-12345',newPassword='replacement-test-password-45678';
+  const login=async(email,password)=>fetch(base+'/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})});
+  const headersFor=async(response)=>{assert.equal(response.status,200);const Cookie=response.headers.get('set-cookie').split(';')[0];const session=await(await fetch(base+'/api/session',{headers:{Cookie}})).json();return {Cookie,'Content-Type':'application/json','X-CSRF-Token':session.user.csrf};};
+  try {
+    const owner=await headersFor(await login('owner@example.com',oldPassword));
+    const second=await headersFor(await login('owner@example.com',oldPassword));
+    const input={currentPassword:oldPassword,newPassword,confirmPassword:newPassword};
+    const change=(data=input,headers=owner)=>fetch(base+'/api/password',{method:'POST',headers,body:JSON.stringify(data)});
+    assert.equal((await change(input,{})).status,401);
+    assert.equal((await change(input,{...owner,'X-CSRF-Token':'bad'})).status,403);
+    assert.equal((await change(input,{...owner,Origin:'https://attacker.example'})).status,403);
+    assert.equal((await change({...input,newPassword:'short',confirmPassword:'short'})).status,400);
+    assert.equal((await change({...input,confirmPassword:'does-not-match'})).status,400);
+    assert.equal((await change({...input,currentPassword:'incorrect-current-password'})).status,400);
+    assert.equal((await change({...input,newPassword:oldPassword,confirmPassword:oldPassword})).status,400);
+    assert.equal((await fetch(base+'/api/bootstrap',{headers:owner})).status,200);
+    const created=await fetch(base+'/api/users',{method:'POST',headers:owner,body:JSON.stringify({name:'Editor',email:'editor@example.com',password:'test-editor-password-12345',role:'editor'})});assert.equal(created.status,201);
+    const editor=await headersFor(await login('editor@example.com','test-editor-password-12345'));
+    const response=await change();assert.equal(response.status,200);assert.match(response.headers.get('set-cookie'),/Max-Age=0.*Secure/);
+    assert.equal((await fetch(base+'/api/bootstrap',{headers:owner})).status,401);
+    assert.equal((await fetch(base+'/api/bootstrap',{headers:second})).status,401);
+    assert.equal((await fetch(base+'/api/bootstrap',{headers:editor})).status,200);
+    assert.equal((await login('owner@example.com',oldPassword)).status,401);
+    const updated=await headersFor(await login('owner@example.com',newPassword));
+    const activity=await(await fetch(base+'/api/audit',{headers:updated})).json();assert(activity.some(x=>x.action==='password_changed'));assert(!JSON.stringify(activity).includes(newPassword));
+    await stop(child);child=await start(dir,port,true);
+    assert.equal((await login('owner@example.com',newPassword)).status,200);
+    assert.equal((await login('owner@example.com',oldPassword)).status,401);
+  }finally{await stop(child);await rm(dir,{recursive:true,force:true});}
+});
 test('AI controls require owner authorization, CSRF and explicit opt-in without calling OpenAI',async()=>{
   const dir=await mkdtemp(join(tmpdir(),'social-ai-auth-')),port=await freePort(),base=`http://127.0.0.1:${port}`;
   const child=await start(dir,port,true,'test-only-not-a-real-key');

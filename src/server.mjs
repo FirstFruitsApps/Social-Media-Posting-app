@@ -58,6 +58,28 @@ const server=http.createServer(async(req,res)=>{
       }
       if(!user)throw new AppError('Please sign in.',401);
       if(!['GET','HEAD'].includes(method) && req.headers['x-csrf-token']!==user.csrf)throw new AppError('Please refresh this page and try again.',403);
+      if(path==='/api/password' && method==='POST') {
+        if(localPreview)throw new AppError('Password changes require a signed-in account.',403);
+        rateLimit('password:'+user.id);
+        const input=await body(req,8192);
+        if(typeof input.currentPassword!=='string'||typeof input.newPassword!=='string'||typeof input.confirmPassword!=='string')throw new AppError('Complete all password fields.');
+        if(input.currentPassword.length>512||input.newPassword.length<14||input.newPassword.length>512)throw new AppError('Use a new password between 14 and 512 characters.');
+        if(input.newPassword!==input.confirmPassword)throw new AppError('The new passwords do not match.');
+        const account=db.prepare('SELECT password FROM users WHERE id=?').get(user.id);
+        if(!account||!await verifyPassword(input.currentPassword,account.password))throw new AppError('The current password is incorrect.',400);
+        if(input.newPassword===input.currentPassword)throw new AppError('Choose a different new password.');
+        const password=await hashPassword(input.newPassword);
+        db.exec('BEGIN IMMEDIATE');
+        try {
+          const updated=db.prepare('UPDATE users SET password=? WHERE id=? AND password=?').run(password,user.id,account.password);
+          if(!updated.changes)throw new AppError('Your account changed. Sign in again and retry.',409);
+          db.prepare('DELETE FROM sessions WHERE user_id=?').run(user.id);
+          audit(db,user.id,'password_changed',user.id);
+          db.exec('COMMIT');
+        }catch(e){db.exec('ROLLBACK');throw e;}
+        res.setHeader('Set-Cookie',`storage_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0${production?'; Secure':''}`);
+        return json(res,200,{ok:true});
+      }
       if(path==='/api/logout' && method==='POST') {const token=(req.headers.cookie||'').match(/storage_session=([^;]+)/)?.[1];if(token)db.prepare('DELETE FROM sessions WHERE token=?').run(digest(token));res.setHeader('Set-Cookie','storage_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0');return json(res,200,{ok:true});}
       if(path==='/api/bootstrap' && method==='GET')return json(res,200,{settings:settings(db),platforms,media:db.prepare('SELECT * FROM media ORDER BY created_at DESC').all().map(mediaView),posts:db.prepare('SELECT * FROM posts ORDER BY updated_at DESC').all().map(r=>postView(db,r)),providerConfigured:provider.configured,aiEnabled:ai.status().enabled,ai:ai.status(),user});
       if(path==='/api/ai/settings' && method==='PUT') {

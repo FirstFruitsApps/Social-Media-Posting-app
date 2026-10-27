@@ -61,6 +61,8 @@ Corrected unsaved-draft replacement, delayed save responses overwriting newer ed
 
 Backup restoration validates tar entries and SQLite in a private staging directory before copying files to an empty destination. Failed restores remove only files they created and preserve existing files. Malformed stored password hashes fail authentication safely. Server tests use allocated ports and verify their own child process is ready, avoiding collisions with other local servers.
 
-Syntax checks and all **32 automated tests** pass. Tests use isolated data and mock providers; no OpenAI requests or social posts were sent. Local browser checks passed for photo upload, saving a draft, reviewing, and scheduling in America/Phoenix. Browser assets use version `20261026-review2`, including the new `draft-safety.js` module. Production deployment and authenticated verification will be recorded below after completion.
+Syntax checks and all **33 automated tests** pass. Tests use isolated data and mock providers; no OpenAI requests or social posts were sent. Local browser checks passed for photo upload, saving a draft, reviewing, and scheduling in America/Phoenix. Browser assets use version `20261026-review2`, including the new `draft-safety.js` module. Production deployment and authenticated verification will be recorded below after completion.
 
 The previous key-expiry date was October 22, 2026. Current AI key validity and live social publishing are unverified; do not infer either from environment-variable presence. Preserve the existing persistent DATA_DIR and take a fresh private business-data backup before redeploying.
+
+The October 8 deployment also contained an authenticated password-change feature absent from GitHub. Its matching source was located in the October 8 task workspace, and the API, frontend and session-revocation regression test were merged into this repository before deployment. Existing passwords are not reset or changed by this release.
